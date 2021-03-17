@@ -1,0 +1,16 @@
+#!/bin/bash
+
+REPOSITORY_PATH=$(git rev-parse --show-toplevel)
+
+git stash save -k
+
+cd $REPOSITORY_PATH
+cargo test
+
+if [ $? = 0 ]; then
+    git stash pop
+    exit 0
+else
+    git stash pop
+    exit 1
+fi

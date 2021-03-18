@@ -163,7 +163,7 @@ struct SatSolver {
     n_var: usize,
     clauses: Vec<Clause>,
     assigns: Vec<(Lit, Vec<Lit>)>,
-    assigned: Vec<Option<bool>>,
+    assigned: Vec<Option<(bool, usize)>>,
 }
 
 impl SatSolver {
@@ -176,8 +176,9 @@ impl SatSolver {
         }
     }
     fn unit_prop(&mut self, i: usize, sign: bool) -> Option<(Lit, Vec<Lit>)> {
+        let level = self.assigns.len();
         //eprintln!("unit_prop: assigns = {:?}, i = {}, sign = {}", self.assigns, i, sign);
-        self.assigned[i] = Some(sign);
+        self.assigned[i] = Some((sign, level));
         let mut unit_prop = vec![];
         loop {
             let mut updated = false;
@@ -186,7 +187,7 @@ impl SatSolver {
                 let mut not_assigned_lit = None;
                 let mut satisfy_clause = false;
                 for lit in clause.iter() {
-                    if let Some(x) = self.assigned[lit.id()] {
+                    if let Some((x, level)) = self.assigned[lit.id()] {
                         if lit.sign() == x {
                             satisfy_clause = true;
                             break;
@@ -208,7 +209,7 @@ impl SatSolver {
                     // unit prop
                     updated = true;
                     let lit = *not_assigned_lit.unwrap();
-                    self.assigned[lit.id()] = Some(lit.sign());
+                    self.assigned[lit.id()] = Some((lit.sign(), level));
                     unit_prop.push(lit);
                     continue;
                 }
@@ -261,7 +262,7 @@ impl SatSolver {
                 return SatSolverResultInner::Unsat;
             }
         }
-        let xs: Vec<_> = self.assigned.iter().map(|&x| x.unwrap()).collect();
+        let xs: Vec<_> = self.assigned.iter().map(|&x| x.unwrap().0).collect();
         SatSolverResultInner::Sat(xs)
     }
 }

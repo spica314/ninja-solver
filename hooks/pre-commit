@@ -5,7 +5,7 @@ REPOSITORY_PATH=$(git rev-parse --show-toplevel)
 git stash save -k
 
 cd $REPOSITORY_PATH
-cargo test
+cargo test --release
 
 if [ $? = 0 ]; then
     git stash pop

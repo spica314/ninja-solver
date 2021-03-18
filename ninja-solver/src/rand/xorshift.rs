@@ -1,4 +1,5 @@
 
+#[derive(Debug, Clone, Default)]
 pub struct XorShift128 {
     x: u32,
     y: u32,

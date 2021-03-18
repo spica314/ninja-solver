@@ -51,7 +51,7 @@ impl FromStr for DIMACS {
                 continue;
             }
             // comment
-            if line.starts_with("c") {
+            if line.starts_with('c') {
                 comments.push(line[2..].to_string());
                 continue;
             }

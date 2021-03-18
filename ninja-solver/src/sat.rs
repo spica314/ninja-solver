@@ -1,6 +1,4 @@
-use std::{collections::HashMap, fmt::{self, Debug}, unimplemented};
-
-use crate::rand::xorshift::XorShift128;
+use std::{collections::HashMap, fmt::{self, Debug}};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 struct Lit(usize);
@@ -59,22 +57,13 @@ pub enum SatSolverResult {
 
 impl SatSolverResult {
     pub fn is_unknown(&self) -> bool {
-        match self {
-            SatSolverResult::Unknown => true,
-            _ => false,
-        }
+        matches!(self, SatSolverResult::Unknown)
     }
     pub fn is_sat(&self) -> bool {
-        match self {
-            SatSolverResult::Sat(_) => true,
-            _ => false,
-        }
+        matches!(self, SatSolverResult::Sat(_))
     }
     pub fn is_unsat(&self) -> bool {
-        match self {
-            SatSolverResult::Unsat => true,
-            _ => false,
-        }
+        matches!(self, SatSolverResult::Unsat)
     }
 }
 
@@ -85,7 +74,7 @@ pub enum SatSolverResultInner {
     Unsat,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SatProblem {
     clauses: Vec<Clause>,
     outer_id_to_inner_id_map: HashMap<usize, usize>,
@@ -190,7 +179,6 @@ impl SatSolver {
         //eprintln!("unit_prop: assigns = {:?}, i = {}, sign = {}", self.assigns, i, sign);
         self.assigned[i] = Some(sign);
         let mut unit_prop = vec![];
-        let mut fail_satisfy = false;
         loop {
             let mut updated = false;
             for clause in &self.clauses {
@@ -262,13 +250,12 @@ impl SatSolver {
                     }
                     if lit.sign() {
                         continue;
+                    }
+                    if let Some((lit, unit_prop)) = self.unit_prop(lit.id(), true) {
+                        self.assigns.push((lit, unit_prop));
+                        continue 'lo;
                     } else {
-                        if let Some((lit, unit_prop)) = self.unit_prop(lit.id(), true) {
-                            self.assigns.push((lit, unit_prop));
-                            continue 'lo;
-                        } else {
-                            continue;
-                        }
+                        continue;
                     }
                 }
                 return SatSolverResultInner::Unsat;
@@ -279,86 +266,92 @@ impl SatSolver {
     }
 }
 
-#[test]
-fn test_sat_solver_1() {
-    let mut problem = SatProblem::new();
-    problem.add_clause(&[(0, false), (1, false)]);
-    problem.add_clause(&[(0, true)]);
-    let res = problem.solve();
-    problem.check_result(&res);
-    match res {
-        SatSolverResult::Sat(xs) => {
-            // eprintln!("xs = {:?}", xs);
-            assert!(xs[&0] && !xs[&1])
-        }
-        _ => panic!(),
-    }
-}
+#[cfg(test)]
+mod tests {
+    use crate::rand::xorshift::XorShift128;
+    use super::*;
 
-#[test]
-fn test_sat_solver_2() {
-    let mut problem = SatProblem::new();
-    problem.add_clause(&[(1, false), (1, true)]);
-    problem.add_clause(&[(0, true)]);
-    let res = problem.solve();
-    problem.check_result(&res);
-}
-
-#[test]
-fn test_sat_solver_3() {
-    let mut problem = SatProblem::new();
-    problem.add_clause(&[(0, true),  (1, false), (1, false)]);
-    problem.add_clause(&[(1, true),  (2, false), (2, true)]);
-    problem.add_clause(&[(0, true),  (0, true),  (2, true)]);
-    problem.add_clause(&[(1, false), (2, false), (1, true)]);
-    problem.add_clause(&[(0, true),  (2, false), (1, true)]);
-    let res = problem.solve();
-    assert!(problem.check_result(&res));
-    //eprintln!("res = {:?}", res);
-}
-
-fn test_sat_solver_rand(n_var: usize, n_clause: usize, n_test: usize) {
-    let mut rand = XorShift128::new();
-    let gen_random_lit = |rand: &mut XorShift128| {
-        (rand.gen_mod(n_var), rand.gen_mod(2) != 0)
-    };
-    let mut count_unknown = 0;
-    let mut count_sat = 0;
-    let mut count_unsat = 0;
-    for test_id in 0..n_test {
+    #[test]
+    fn test_sat_solver_1() {
         let mut problem = SatProblem::new();
-        for _ in 0..n_clause {
-            let a = gen_random_lit(&mut rand);
-            let b = gen_random_lit(&mut rand);
-            let c = gen_random_lit(&mut rand);
-            problem.add_clause(&[a, b, c]);
-        }
+        problem.add_clause(&[(0, false), (1, false)]);
+        problem.add_clause(&[(0, true)]);
         let res = problem.solve();
-        if res.is_unknown() {
-            count_unknown += 1;
+        problem.check_result(&res);
+        match res {
+            SatSolverResult::Sat(xs) => {
+                // eprintln!("xs = {:?}", xs);
+                assert!(xs[&0] && !xs[&1])
+            }
+            _ => panic!(),
         }
-        if res.is_sat() {
-            count_sat += 1;
-        }
-        if res.is_unsat() {
-            count_unsat += 1;
-        }
-        assert!(problem.check_result(&res), "test_id = {}, problem = {:?}, res = {:?}", test_id, problem, res);
     }
-    eprintln!("n_var = {}, n_clause = {}, sat = {}, unsat = {}, unknown = {}", n_var, n_clause, count_sat, count_unsat, count_unknown);
-}
 
-#[test]
-fn test_sat_solver_rand_1() {
-    test_sat_solver_rand(3, 19, 1000);
-}
+    #[test]
+    fn test_sat_solver_2() {
+        let mut problem = SatProblem::new();
+        problem.add_clause(&[(1, false), (1, true)]);
+        problem.add_clause(&[(0, true)]);
+        let res = problem.solve();
+        problem.check_result(&res);
+    }
 
-#[test]
-fn test_sat_solver_rand_2() {
-    test_sat_solver_rand(10, 48, 1000);
-}
+    #[test]
+    fn test_sat_solver_3() {
+        let mut problem = SatProblem::new();
+        problem.add_clause(&[(0, true),  (1, false), (1, false)]);
+        problem.add_clause(&[(1, true),  (2, false), (2, true)]);
+        problem.add_clause(&[(0, true),  (0, true),  (2, true)]);
+        problem.add_clause(&[(1, false), (2, false), (1, true)]);
+        problem.add_clause(&[(0, true),  (2, false), (1, true)]);
+        let res = problem.solve();
+        assert!(problem.check_result(&res));
+        //eprintln!("res = {:?}", res);
+    }
 
-#[test]
-fn test_sat_solver_rand_3() {
-    test_sat_solver_rand(15, 68, 200);
+    fn test_sat_solver_rand(n_var: usize, n_clause: usize, n_test: usize) {
+        let mut rand = XorShift128::new();
+        let gen_random_lit = |rand: &mut XorShift128| {
+            (rand.gen_mod(n_var), rand.gen_mod(2) != 0)
+        };
+        let mut count_unknown = 0;
+        let mut count_sat = 0;
+        let mut count_unsat = 0;
+        for test_id in 0..n_test {
+            let mut problem = SatProblem::new();
+            for _ in 0..n_clause {
+                let a = gen_random_lit(&mut rand);
+                let b = gen_random_lit(&mut rand);
+                let c = gen_random_lit(&mut rand);
+                problem.add_clause(&[a, b, c]);
+            }
+            let res = problem.solve();
+            if res.is_unknown() {
+                count_unknown += 1;
+            }
+            if res.is_sat() {
+                count_sat += 1;
+            }
+            if res.is_unsat() {
+                count_unsat += 1;
+            }
+            assert!(problem.check_result(&res), "test_id = {}, problem = {:?}, res = {:?}", test_id, problem, res);
+        }
+        eprintln!("n_var = {}, n_clause = {}, sat = {}, unsat = {}, unknown = {}", n_var, n_clause, count_sat, count_unsat, count_unknown);
+    }
+
+    #[test]
+    fn test_sat_solver_rand_1() {
+        test_sat_solver_rand(3, 19, 1000);
+    }
+
+    #[test]
+    fn test_sat_solver_rand_2() {
+        test_sat_solver_rand(10, 48, 1000);
+    }
+
+    #[test]
+    fn test_sat_solver_rand_3() {
+        test_sat_solver_rand(15, 68, 200);
+    }
 }

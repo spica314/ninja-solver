@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::{self, Debug}};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 struct Lit(usize);
 
 impl Lit {
@@ -16,6 +16,15 @@ impl Lit {
     }
     pub fn sign(self) -> bool {
         self.0 & 1 != 0
+    }
+}
+
+impl fmt::Debug for Lit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Lit")
+            .field("id", &self.id())
+            .field("sign", &self.sign())
+            .finish()
     }
 }
 

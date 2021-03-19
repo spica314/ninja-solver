@@ -54,6 +54,19 @@ impl Clause {
         if self.xs.len() == 0 {
             return;
         }
+        for i in 1..self.xs.len() {
+            if self.xs[i-1].id() == self.xs[i].id() && self.xs[i-1].sign() != self.xs[i].sign() {
+                self.xs.clear();
+                return;
+            }
+        }
+    }
+    pub fn merge(&mut self, r: &Clause) {
+        for &lit in r.iter() {
+            self.xs.push(lit);
+        }
+        self.xs.sort();
+        self.xs.dedup();
         let mut res = vec![self.xs[0]];
         for i in 1..self.xs.len() {
             if res.len() >= 1 && res[res.len()-1].id() == self.xs[i].id() && res[res.len()-1].sign() != self.xs[i].sign() {
@@ -63,11 +76,6 @@ impl Clause {
             }
         }
         self.xs = res;
-    }
-    pub fn merge(&mut self, r: &Clause) {
-        for &lit in r.iter() {
-            self.xs.push(lit);
-        }
         self.normalize();
     }
 }
@@ -122,12 +130,17 @@ impl SatProblem {
             self.inner_id_to_outer_id_map.insert(id2, id);
             c.push(Lit::new(id2, sign));
         }
-        c.normalize();
-        if !c.xs.is_empty() {
-            self.clauses.push(c);
-        }
+        //c.normalize();
+        //if !c.xs.is_empty() {
+        //}
+        self.clauses.push(c);
     }
     pub fn solve(&self) -> SatSolverResult {
+        eprintln!("clauses: ");
+        for clause in &self.clauses {
+            eprintln!("    {:?}", clause);
+        }
+        //eprintln!("clauses = {:?}", self.clauses);
         let mut solver = SatSolver::new(self.outer_id_to_inner_id_map.len(), self.clauses.clone());
         eprintln!("solver = {:?}", solver);
         match solver.solve() {
@@ -169,6 +182,7 @@ impl SatProblem {
                     for clause in &self.clauses {
                         let mut ok_clause = false;
                         for lit in clause.iter() {
+                            assert!(lit.id()-1 < n_var);
                             if (bits >> (lit.id()-1)) & 1 == lit.sign() as usize {
                                 ok_clause = true;
                             }
@@ -178,6 +192,7 @@ impl SatProblem {
                         }
                     }
                     if ok_cnf {
+                        eprintln!("bits = {:b}", bits);
                         return false;
                     }
                 }
@@ -205,9 +220,16 @@ enum UnitPropResult {
 
 impl SatSolver {
     fn new(n_var: usize, clauses: Vec<Clause>) -> SatSolver {
+        let mut clauses2 = vec![];
+        for mut clause in clauses {
+            clause.normalize();
+            if !clause.xs.is_empty() {
+                clauses2.push(clause);
+            }
+        }
         SatSolver {
             n_var: n_var + 1,
-            clauses,
+            clauses: clauses2,
             dicisions: vec![],
             assigned: vec![None; n_var + 1],
             reason: vec![None; n_var + 1],
@@ -350,7 +372,9 @@ impl SatSolver {
                     let mut clause = clause.clone();
                     for &(_, k) in unit_prop.iter().rev() {
                         if reasons.contains(&k) {
+                            eprint!("{:?} & {:?} ->", clause, self.clauses[k]);
                             clause.merge(&self.clauses[k]);
+                            eprintln!("{:?}", clause);
                             for &lit2 in self.clauses[k].iter() {
                                 if self.assigned[lit2.id()].unwrap().1 == level && lit2.id() != lit.id() {
                                     reasons.insert(self.reason[lit2.id()].unwrap());
@@ -375,13 +399,14 @@ impl SatSolver {
                         self.assigned[lit2.id()] = None;
                         self.reason[lit2.id()] = None;
                     }
+                    let mut old = clause.clone();
                     clause.normalize();
                     if !clause.xs.is_empty() {
                         if !self.clauses.iter().any(|x| x == &clause) {
                             self.clauses.push(clause);
                         }
                     } else {
-                        panic!();
+                        panic!("old = {:?}", old);
                     }
                     //eprintln!("clauses:");
                     for clause in &self.clauses {
@@ -569,7 +594,7 @@ mod tests {
 
     #[test]
     fn test_sat_solver_rand_1() {
-        test_sat_solver_rand(3, 8, 1000);
+        test_sat_solver_rand(3, 19, 1000);
     }
 
     #[test]

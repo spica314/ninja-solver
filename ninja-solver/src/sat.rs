@@ -456,16 +456,21 @@ mod tests {
 
     #[test]
     fn test_sat_solver_rand_1() {
-        test_sat_solver_rand(3, 19, 1000);
+        test_sat_solver_rand(3, 19, 300000);
     }
 
     #[test]
     fn test_sat_solver_rand_2() {
-        test_sat_solver_rand(10, 48, 1000);
+        test_sat_solver_rand(10, 48, 30000);
     }
 
     #[test]
     fn test_sat_solver_rand_3() {
-        test_sat_solver_rand(15, 68, 200);
+        test_sat_solver_rand(15, 68, 1000);
+    }
+
+    #[test]
+    fn test_sat_solver_rand_4() {
+        test_sat_solver_rand(18, 80, 100);
     }
 }

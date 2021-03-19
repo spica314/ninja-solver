@@ -1,6 +1,6 @@
 //! struct for DIMACS format
 //!
-//! reference: [http://www.satcompetition.org/2009/format-benchmarks2009.html](http://www.satcompetition.org/2009/format-benchmarks2009.html)
+//! reference: <http://www.satcompetition.org/2009/format-benchmarks2009.html>
 
 use std::str::FromStr;
 use std::convert::TryFrom;

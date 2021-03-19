@@ -101,7 +101,7 @@ impl SatSolverResult {
 }
 
 #[derive(Debug, Clone)]
-pub enum SatSolverResultInner {
+enum SatSolverResultInner {
     Unknown,
     Sat(Vec<bool>),
     Unsat,

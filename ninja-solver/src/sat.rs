@@ -136,13 +136,15 @@ impl SatProblem {
         self.clauses.push(c);
     }
     pub fn solve(&self) -> SatSolverResult {
+        /*
         eprintln!("clauses: ");
         for clause in &self.clauses {
             eprintln!("    {:?}", clause);
         }
+        */
         //eprintln!("clauses = {:?}", self.clauses);
         let mut solver = SatSolver::new(self.outer_id_to_inner_id_map.len(), self.clauses.clone());
-        eprintln!("solver = {:?}", solver);
+        //eprintln!("solver = {:?}", solver);
         match solver.solve() {
             SatSolverResultInner::Unknown => SatSolverResult::Unknown,
             SatSolverResultInner::Sat(xs) => {
@@ -212,12 +214,6 @@ struct SatSolver {
     reason: Vec<Option<usize>>,
 }
 
-#[derive(Debug, Clone)]
-enum UnitPropResult {
-    Success(Lit, Vec<(Lit, usize)>),
-    Conflict(Lit, Vec<(Lit, usize)>),
-}
-
 impl SatSolver {
     fn new(n_var: usize, clauses: Vec<Clause>) -> SatSolver {
         let mut clauses2 = vec![];
@@ -235,74 +231,19 @@ impl SatSolver {
             reason: vec![None; n_var + 1],
         }
     }
-    /*
-    fn unit_prop(&mut self, i: usize, sign: bool) -> UnitPropResult {
-        let level = self.assigns.len();
-        //eprintln!("unit_prop: assigns = {:?}, i = {}, sign = {}", self.assigns, i, sign);
-        self.assigned[i] = Some((sign, level));
-        let mut unit_prop = vec![];
-        loop {
-            let mut updated = false;
-            for (k, clause) in self.clauses.iter().enumerate() {
-                let mut not_assigned_count = 0;
-                let mut not_assigned_lit = None;
-                let mut satisfy_clause = false;
-                for lit in clause.iter() {
-                    if let Some((x, level)) = self.assigned[lit.id()] {
-                        if lit.sign() == x {
-                            satisfy_clause = true;
-                            break;
-                        }
-                    } else {
-                        not_assigned_count += 1;
-                        not_assigned_lit = Some(lit);
-                    }
-                }
-                //eprintln!("clause = {:?}, satisfy_clause = {}, not_assigned_lit = {:?}", clause, satisfy_clause, not_assigned_count);
-                if satisfy_clause {
-                    continue;
-                }
-                assert!(!satisfy_clause);
-                if not_assigned_count >= 2 {
-                    continue;
-                }
-                if not_assigned_count == 1 {
-                    // unit prop
-                    updated = true;
-                    let lit = *not_assigned_lit.unwrap();
-                    self.assigned[lit.id()] = Some((lit.sign(), level));
-                    unit_prop.push((lit, k));
-                    continue;
-                }
-                assert!(not_assigned_count == 0);
-                //eprintln!("-> fail");
-                /*
-                self.assigned[i] = None;
-                for (lit, _) in unit_prop {
-                    self.assigned[lit.id()] = None;
-                }
-                */
-                return UnitPropResult::Conflict(Lit::new(i, sign), unit_prop);
-            }
-            if !updated {
-                break;
-            }
-        }
-        //eprintln!("-> ok");
-        UnitPropResult::Success(Lit::new(i, sign), unit_prop)
-    }
-    */
     fn solve(&mut self) -> SatSolverResultInner {
-        eprintln!("------------------------------------------");
+        //eprintln!("------------------------------------------");
         self.clauses.sort();
         self.clauses.dedup();
         self.clauses.sort_by(|x,y| x.xs.len().cmp(&y.xs.len()));
         self.clauses.reverse();
+        /*
         for clause in &self.clauses {
             eprintln!("    {:?}", clause);
         }
+        */
         'lo: for _ in 0.. {
-            eprintln!();
+            //eprintln!();
             //eprintln!("dicisions = {:?}", self.dicisions);
             let level = self.dicisions.len();
             let i = {
@@ -327,7 +268,7 @@ impl SatSolver {
                     let mut not_assigned_lit = None;
                     let mut satisfy_clause = false;
                     for lit in clause.iter() {
-                        if let Some((x, level)) = self.assigned[lit.id()] {
+                        if let Some((x, _)) = self.assigned[lit.id()] {
                             if lit.sign() == x {
                                 satisfy_clause = true;
                                 break;
@@ -362,9 +303,6 @@ impl SatSolver {
                     }
                     let mut reasons = BTreeSet::new();
                     for &lit2 in clause.iter() {
-                        //eprintln!("_ clause = {:?}", clause);
-                        //eprintln!("_ assigned = {:?}", self.assigned);
-                        //eprintln!("_ reason = {:?}", self.reason);
                         if self.assigned[lit2.id()].unwrap().1 == level && lit2.id() != lit.id() {
                             reasons.insert(self.reason[lit2.id()].unwrap());
                         }
@@ -372,9 +310,9 @@ impl SatSolver {
                     let mut clause = clause.clone();
                     for &(_, k) in unit_prop.iter().rev() {
                         if reasons.contains(&k) {
-                            eprint!("{:?} & {:?} ->", clause, self.clauses[k]);
+                            //eprint!("{:?} & {:?} -> ", clause, self.clauses[k]);
                             clause.merge(&self.clauses[k]);
-                            eprintln!("{:?}", clause);
+                            //eprintln!("{:?}", clause);
                             for &lit2 in self.clauses[k].iter() {
                                 if self.assigned[lit2.id()].unwrap().1 == level && lit2.id() != lit.id() {
                                     reasons.insert(self.reason[lit2.id()].unwrap());
@@ -395,11 +333,11 @@ impl SatSolver {
                         }
                     }
                     self.assigned[lit.id()] = None;
-                    for &(lit2, k) in unit_prop.iter().rev() {
+                    for &(lit2, _) in unit_prop.iter().rev() {
                         self.assigned[lit2.id()] = None;
                         self.reason[lit2.id()] = None;
                     }
-                    let mut old = clause.clone();
+                    let old = clause.clone();
                     clause.normalize();
                     if !clause.xs.is_empty() {
                         if !self.clauses.iter().any(|x| x == &clause) {
@@ -408,10 +346,12 @@ impl SatSolver {
                     } else {
                         panic!("old = {:?}", old);
                     }
-                    //eprintln!("clauses:");
+                    /*
+                    eprintln!("clauses:");
                     for clause in &self.clauses {
-                        //eprintln!("    {:?}", clause);
+                        eprintln!("    {:?}", clause);
                     }
+                    */
                     while self.dicisions.len() > max_level {
                         if let Some((lit, unit_prop)) = self.dicisions.pop() {
                             self.assigned[lit.id()] = None;
@@ -430,84 +370,6 @@ impl SatSolver {
             self.dicisions.push((lit, unit_prop));
             continue 'lo;
         }
-        /*
-        'lo: loop {
-            eprintln!("assigns = {:?}", self.assigns);
-            let mut i = 0;
-            while i < self.assigned.len() && self.assigned[i].is_some() {
-                i += 1;
-            }
-            if i == self.assigned.len() {
-                break;
-            }
-
-            match self.unit_prop(i, false) {
-                UnitPropResult::Success(lit, unit_prop) => {
-                    eprintln!("unit_prop success: lit = {:?}, unit_prop = {:?}", lit, unit_prop);
-                    self.assigns.push((lit, unit_prop));
-                }
-                UnitPropResult::Conflict(lit, unit_prop) => {
-                    eprintln!("unit_prop conflict: lit = {:?}, unit_prop = {:?}", lit, unit_prop);
-                    let level = self.assigns.len();
-                    let mut clause = Clause::new();
-                    for &(lit2, k) in unit_prop.iter().rev() {
-                        clause.merge(&self.clauses[k]);
-                        self.assigned[lit2.id()] = None;
-                    }
-                    eprintln!("new_clause = {:?}", clause);
-                    let mut max_level = None;
-                    for &lit2 in clause.iter() {
-                        if let Some(t) = self.assigned[lit2.id()] {
-                            if t.1 != level {
-                                if max_level.is_none() || max_level.unwrap() < t.1 {
-                                    max_level = Some(t.1);
-                                }
-                            }
-                        }
-                    }
-                    self.assigned[lit.id()] = None;
-                    self.clauses.push(clause);
-                    while self.assigns.len() > (if let Some(x) = max_level { x + 1 } else { 0 }) {
-                        if let Some((lit, unit_prop)) = self.assigns.pop() {
-                        }
-                        let t = self.assigns.pop();
-                    }
-                }
-            }
-
-            /*
-            if let Some((lit, unit_prop)) = self.unit_prop(i, false) {
-                self.assigns.push((lit, unit_prop));
-            } else {
-
-            }
-
-            if let Some((lit, unit_prop)) = self.unit_prop(i, false) {
-                self.assigns.push((lit, unit_prop));
-            } else if let Some((lit, unit_prop)) = self.unit_prop(i, true) {
-                self.assigns.push((lit, unit_prop));
-            } else {
-                // backtrack
-                while let Some((lit, unit_prop)) = self.assigns.pop() {
-                    self.assigned[lit.id()] = None;
-                    for (lit, _) in unit_prop {
-                        self.assigned[lit.id()] = None;
-                    }
-                    if lit.sign() {
-                        continue;
-                    }
-                    if let Some((lit, unit_prop)) = self.unit_prop(lit.id(), true) {
-                        self.assigns.push((lit, unit_prop));
-                        continue 'lo;
-                    } else {
-                        continue;
-                    }
-                }
-                return SatSolverResultInner::Unsat;
-            }
-            */
-        }
-        */
         if !self.assigned.iter().all(|x| x.is_some()) {
             return SatSolverResultInner::Unknown;
         }

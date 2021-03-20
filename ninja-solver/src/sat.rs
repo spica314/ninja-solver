@@ -61,6 +61,59 @@ impl Clause {
             }
         }
     }
+    pub fn merge_if_cross(&mut self, r: &Clause) {
+        {
+            let mut merge_flag = false;
+            let mut i = 0;
+            let mut k = 0;
+            while i < self.xs.len() && k < r.xs.len() {
+                if self.xs[i].id() < r.xs[k].id() {
+                    i += 1;
+                } else if self.xs[i].id() == r.xs[k].id() {
+                    if self.xs[i].sign() != r.xs[k].sign() {
+                        merge_flag = true;
+                        break;
+                    }
+                    i += 1;
+                    k += 1;
+                } else {
+                    k += 1;
+                }
+            }
+            if !merge_flag {
+                return;
+            }
+        }
+        let mut res = vec![];
+        let mut i = 0;
+        let mut k = 0;
+        while i < self.xs.len() && k < r.xs.len() {
+            if self.xs[i].id() < r.xs[k].id() {
+                res.push(self.xs[i]);
+                i += 1;
+            } else if self.xs[i].id() == r.xs[k].id() {
+                if self.xs[i].sign() != r.xs[k].sign() {
+                } else {
+                    res.push(self.xs[i]);
+                }
+                i += 1;
+                k += 1;
+            } else {
+                res.push(r.xs[k]);
+                k += 1;
+            }
+        }
+        while i < self.xs.len() {
+            res.push(self.xs[i]);
+            i += 1;
+        }
+        while k < r.xs.len() {
+            res.push(r.xs[k]);
+            k += 1;
+        }
+        self.xs = res;
+        self.normalize();
+    }
     pub fn merge(&mut self, r: &Clause) {
         for &lit in r.iter() {
             self.xs.push(lit);
@@ -301,24 +354,11 @@ impl SatSolver {
                     if level == 0 {
                         return SatSolverResultInner::Unsat;
                     }
-                    let mut reasons = BTreeSet::new();
-                    for &lit2 in clause.iter() {
-                        if self.assigned[lit2.id()].unwrap().1 == level && lit2.id() != lit.id() {
-                            reasons.insert(self.reason[lit2.id()].unwrap());
-                        }
-                    }
                     let mut clause = clause.clone();
                     for &(_, k) in unit_prop.iter().rev() {
-                        if reasons.contains(&k) {
-                            //eprint!("{:?} & {:?} -> ", clause, self.clauses[k]);
-                            clause.merge(&self.clauses[k]);
-                            //eprintln!("{:?}", clause);
-                            for &lit2 in self.clauses[k].iter() {
-                                if self.assigned[lit2.id()].unwrap().1 == level && lit2.id() != lit.id() {
-                                    reasons.insert(self.reason[lit2.id()].unwrap());
-                                }
-                            }
-                        }
+                        //eprint!("{:?} & {:?} -> ", clause, &self.clauses[k]);
+                        clause.merge_if_cross(&self.clauses[k]);
+                        //eprintln!("{:?}", clause);
                     }
                     //eprintln!("new_clause = {:?}", clause);
                     //eprintln!("assignd = {:?}", self.assigned);

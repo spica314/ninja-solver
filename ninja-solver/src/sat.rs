@@ -114,23 +114,6 @@ impl Clause {
         self.xs = res;
         self.normalize();
     }
-    pub fn merge(&mut self, r: &Clause) {
-        for &lit in r.iter() {
-            self.xs.push(lit);
-        }
-        self.xs.sort();
-        self.xs.dedup();
-        let mut res = vec![self.xs[0]];
-        for i in 1..self.xs.len() {
-            if res.len() >= 1 && res[res.len()-1].id() == self.xs[i].id() && res[res.len()-1].sign() != self.xs[i].sign() {
-                res.pop();
-            } else {
-                res.push(self.xs[i]);
-            }
-        }
-        self.xs = res;
-        self.normalize();
-    }
 }
 
 
